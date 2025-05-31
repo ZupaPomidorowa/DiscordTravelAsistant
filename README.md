@@ -1,0 +1,1 @@
+A Discord bot that helps users finding interesting attractions along their travel route.

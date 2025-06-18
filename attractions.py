@@ -15,21 +15,28 @@ def check_address(address):
     verdict = address_val['result']['verdict']
     city = address_val['result']['address']['postalAddress']['locality'].lower()
 
-    if verdict.get('hasUnconfirmedComponents') == True:
+    if verdict.get('hasUnconfirmedComponents'):
         raise commands.CommandError(f'Address is not confirmed. Remember to write address in "" e.g. "plac Defilad 1 Warszawa"')
 
-    if city != 'warszawa' and city != 'warsaw':
-        raise commands.CommandError(f'Only addresses in Warsaw are allowed')
+    # if city != 'warszawa':
+    #     raise commands.CommandError(f'Only addresses in Warsaw are allowed')
 
     lat = address_val['result']['geocode']['location']['latitude']
     long = address_val['result']['geocode']['location']['longitude']
 
     return (lat, long)
 
+def check_travel_mode(mode):
+    travel_modes = ['driving', 'walking', 'bicycling', 'transit']
 
-def find_attractions(latlong_origin, latlong_dest, num):
-    travel_modes = ['driving', 'walking', 'bicycling', 'two-wheeler', 'transit']
-    route = gmaps.directions(latlong_origin, latlong_dest, mode=travel_modes[1])
+    if mode not in travel_modes:
+        raise commands.CommandError(f'Not recognized travel mode. Remember to choose travel mode from: driving, walking, bicycling, transit')
+
+    return mode
+
+
+def find_attractions(latlong_origin, latlong_dest, num, travel_mode):
+    route = gmaps.directions(latlong_origin, latlong_dest, mode=travel_mode)
     overview_polyline = route[0]["overview_polyline"]["points"]
     overview_polyline = polyline.decode(overview_polyline)
 
@@ -73,7 +80,7 @@ def find_attractions(latlong_origin, latlong_dest, num):
     attractions_latlong = list(zip(df_sorted['Lat'], df_sorted['Long']))
     names = list(df_sorted['Name'])
 
-    optimize_route = gmaps.directions(latlong_origin, latlong_dest, mode=travel_modes[1], waypoints=attractions_latlong,
+    optimize_route = gmaps.directions(latlong_origin, latlong_dest, mode=travel_mode, waypoints=attractions_latlong,
                                       optimize_waypoints=True)
     order = optimize_route[0]['waypoint_order']
 
@@ -83,17 +90,16 @@ def find_attractions(latlong_origin, latlong_dest, num):
     return optimized_attractions, optimized_names
 
 
-def create_url(latlong_origin, latlong_dest, attractions):
+def create_url(latlong_origin, latlong_dest, attractions, travel_mode):
 
     url = "https://www.google.com/maps/dir/?api=1"
     origin = "&origin=" + str(latlong_origin[0]) + "," + str(latlong_origin[1])
     dest = "&destination=" + str(latlong_dest[0]) + "," + str(latlong_dest[1])
-    travel_modes = ['driving', 'walking', 'bicycling', 'two-wheeler', 'transit']
-    travel_mode = "&travelmode=" + travel_modes[1]
+    choosen_travel_mode = "&travelmode=" + travel_mode
 
     if attractions:
         waypoints = "&waypoints=" + "|".join([f"{lat},{lng}" for lat, lng in attractions])
     else:
         waypoints = ""
 
-    return url + origin + dest + waypoints + travel_mode
+    return url + origin + dest + waypoints + choosen_travel_mode
